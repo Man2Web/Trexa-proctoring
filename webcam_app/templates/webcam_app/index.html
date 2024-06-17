@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Face Recognition</title>
+</head>
+<body>
+    <h1>Webcam Face Recognition</h1>
+    <video id="video" width="640" height="480" autoplay></video>
+    <button id="startButton">Start</button>
+    <script>
+        const video = document.getElementById('video');
+        const startButton = document.getElementById('startButton');
+
+        // Access the webcam
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    console.error('Error accessing the webcam: ', err);
+                });
+        }
+
+        // Capture video frames and send them to the server
+        function captureFrame() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+
+            fetch('/process_frame/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ image: dataUrl })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.category && data.category !== 'matched_face') {
+                    alert(`Event detected: ${data.category}`);
+                }
+            })
+            .catch(err => {
+                console.error('Error processing frame: ', err);
+            });
+        }
+
+        startButton.addEventListener('click', () => {
+            startVideo();
+            setInterval(captureFrame, 1000);  // Capture a frame every second
+        });
+    </script>
+</body>
+</html>
